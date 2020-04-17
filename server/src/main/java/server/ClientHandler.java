@@ -5,9 +5,12 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.logging.*;
 
 public class ClientHandler {
-
+    private static final Logger logger2 = Logger.getLogger(ClientHandler.class.getName());
     private Socket socket;
     private DataInputStream in;
     private DataOutputStream out;
@@ -17,9 +20,20 @@ public class ClientHandler {
     private String login;
 
     public ClientHandler(Socket socket, Server server) {
+        Handler conHandler2 = new ConsoleHandler();
+        conHandler2.setLevel(Level.ALL);
+        logger2.addHandler(conHandler2);
+        Date dateNow = new Date();
+        SimpleDateFormat formatForDateNow = new SimpleDateFormat("dd.MM.yyyy hh:mm:ss a zzz");
+        conHandler2.setFormatter(new Formatter() {
+            @Override
+            public String format(LogRecord record) {
+                return  formatForDateNow.format(dateNow)+": "+ record.getMessage() + "\n";
+            }
+        });
         try {
             this.socket = socket;
-            System.out.println("RemoteSocketAddress:  " + socket.getRemoteSocketAddress());
+            logger2.log(Level.SEVERE, "RemoteSocketAddress:  " + socket.getRemoteSocketAddress());
             this.server = server;
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
@@ -32,7 +46,7 @@ public class ClientHandler {
                     while (true) {
                         String str = in.readUTF();
                         if (str.startsWith("/reg ")) {
-                            System.out.println("сообщение с просьбой регистрации прошло");
+                            logger2.log(Level.SEVERE, "сообщение с просьбой регистрации прошло");
                             String[] token = str.split(" ");
                             boolean b = server
                                     .getAuthService()
@@ -46,9 +60,9 @@ public class ClientHandler {
 
 
                         if (str.equals("/end")) {
-                            throw new RuntimeException("Клиент отключился крестиком");
-
-                        }
+                            RuntimeException e = new RuntimeException("Клиент отключился крестиком");
+                            logger2.log(Level.SEVERE, e.getMessage(),e);
+                                                    }
                         if (str.startsWith("/auth ")) {
                             String[] token = str.split(" ");
                             String newNick = server.getAuthService()
@@ -61,7 +75,7 @@ public class ClientHandler {
                                     sendMsg("/authok " + newNick);
                                     nick = newNick;
                                     server.subscribe(this);
-                                    System.out.println("Клиент " + nick + " прошел аутентификацию");
+                                    logger2.log(Level.SEVERE, "Клиент " + nick + " прошел аутентификацию");
                                     socket.setSoTimeout(0);
                                     break;
                                 } else {
@@ -112,14 +126,14 @@ public class ClientHandler {
                         }
                     }
                 } catch (SocketTimeoutException e) {
-                    System.out.println("Клиент отключился по таймауту");
+                    logger2.log(Level.SEVERE, "Клиент отключился по таймауту");
                 } catch (RuntimeException e) {
                     System.out.println(e.getMessage());
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
                     server.unsubscribe(this);
-                    System.out.println("Клиент отключился");
+                    logger2.log(Level.SEVERE, "Клиент отключился");
                     try {
                         socket.close();
                     } catch (IOException e) {
