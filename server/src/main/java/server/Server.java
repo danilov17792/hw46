@@ -3,12 +3,16 @@ package server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.*;
 
 
 public class Server {
+    private static final Logger logger1 = Logger.getLogger(Server.class.getName());
     private Vector<ClientHandler> clients;
     private AuthService authService;
     private ExecutorService clientsExecutorService;
@@ -18,9 +22,23 @@ public class Server {
     }
 
     public Server() {
+        logger1.setUseParentHandlers(false);
+        Handler conHandler = new ConsoleHandler();
+        conHandler.setLevel(Level.ALL);
+        logger1.addHandler(conHandler);
+        Date dateNow = new Date();
+        SimpleDateFormat formatForDateNow = new SimpleDateFormat("dd.MM.yyyy hh:mm:ss a zzz");
+        conHandler.setFormatter(new Formatter() {
+            @Override
+            public String format(LogRecord record) {
+                return  formatForDateNow.format(dateNow)+": "+ record.getMessage() + "\n";
+            }
+        });
         clients = new Vector<>();
         if (!SQLHandler.connect()) {
-            throw new RuntimeException("Не удалось подключиться к БД");
+
+            RuntimeException e = new RuntimeException("Не удалось подключиться к БД");
+            logger1.log(Level.SEVERE, e.getMessage(),e);
         }
         authService = new DBAuthServise();
         clientsExecutorService = Executors.newCachedThreadPool();
@@ -31,11 +49,11 @@ public class Server {
 
         try {
             server = new ServerSocket(8189);
-            System.out.println("Сервер запущен");
+            logger1.log(Level.SEVERE, "Сервер запущен");
 
             while (true) {
                 socket = server.accept();
-                System.out.println("Клиент подключился");
+                logger1.log(Level.SEVERE, "Клиент подключился");
 
                 new ClientHandler(socket, this);
             }
